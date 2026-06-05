@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Транспортная карта</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;500;600;700;900&display=swap');
+
+  :root {
+    --bg: #0a0c14;
+    --surface: #111420;
+    --surface2: #171b28;
+    --surface3: #1e2335;
+    --card-blue: linear-gradient(135deg, #1a3a6e 0%, #0d2150 40%, #0a1a3d 100%);
+    --accent: #4f8ef7;
+    --accent2: #6ee7b7;
+    --accent-glow: rgba(79,142,247,0.3);
+    --text: #e8eaf6;
+    --text2: #8b90a7;
+    --text3: #5a5f75;
+    --red: #f25c5c;
+    --green: #4ade80;
+    --border: rgba(255,255,255,0.06);
+    --radius: 20px;
+    --radius-sm: 12px;
+  }
+
+  .light-theme {
+    --bg: #f0f2f8;
+    --surface: #ffffff;
+    --surface2: #f5f7ff;
+    --surface3: #eaedfa;
+    --text: #1a1d2e;
+    --text2: #5a5f75;
+    --text3: #9298b0;
+    --border: rgba(0,0,0,0.08);
+    --accent-glow: rgba(79,142,247,0.15);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body { height:100%; overflow:hidden; background:#000; }
+
+  body {
+    font-family:'Golos Text',sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    transition:background 0.3s, color 0.3s;
+  }
+
+  /* ── APP SHELL ── */
+  .app {
+    width:100%;
+    max-width:420px;
+    height:100dvh;
+    margin:0 auto;
+    display:flex;
+    flex-direction:column;
+    background:var(--bg);
+    position:relative;
+    overflow:hidden;
+  }
+
+  /* ── SCREENS ── */
+  .screen {
+    position:absolute;
+    inset:0;
+    display:flex;
+    flex-direction:column;
+    opacity:0;
+    pointer-events:none;
+    transform:translateX(30px);
+    transition:opacity .25s ease, transform .25s ease;
+    overflow:hidden;
+  }
+  .screen.active {
+    opacity:1;
+    pointer-events:all;
+    transform:translateX(0);
+  }
+  .screen.slide-out {
+    opacity:0;
+    transform:translateX(-30px);
+  }
+
+  /* ── SCROLLABLE CONTENT ── */
+  .scroll-content {
+    flex:1;
+    overflow-y:auto;
+    overflow-x:hidden;
+    -webkit-overflow-scrolling:touch;
+    padding-bottom:90px;
+  }
+  .scroll-content::-webkit-scrollbar { display:none; }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    padding:16px 20px 12px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    background:var(--bg);
+    z-index:10;
+    flex-shrink:0;
+  }
+  .topbar-title {
+    font-size:20px;
+    font-weight:700;
+    flex:1;
+  }
+  .topbar-icon {
+    width:40px; height:40px;
+    background:var(--surface3);
+    border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    border:1px solid var(--border);
+    transition:background .2s;
+  }
+  .topbar-icon:active { background:var(--surface2); }
+  .back-btn {
+    width:40px;height:40px;
+    background:var(--surface3);
+    border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    border:1px solid var(--border);
+  }
+
+  /* ── STATUS BAR ── */
+  .status-bar {
+    padding:12px 20px 0;
+    display:flex;
+    justify-content:space-between;
+    font-size:12px;
+    font-weight:600;
+    color:var(--text);
+    flex-shrink:0;
+  }
+  .status-right { display:flex; gap:6px; align-items:center; }
+
+  /* ── TRANSIT CARD ── */
+  .card-wrap {
+    padding:0 20px;
+    margin-bottom:4px;
+    flex-shrink:0;
+  }
+  .transit-card {
+    background:var(--card-blue);
+    border-radius:var(--radius);
+    padding:20px;
+    position:relative;
+    overflow:hidden;
+    cursor:pointer;
+    min-height:140px;
+    box-shadow:0 8px 32px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.08);
+    transition:transform .15s, box-shadow .15s;
+  }
+  .transit-card:active { transform:scale(0.98); }
+  .transit-card::before {
+    content:'';
+    position:absolute;
+    top:-60px; right:-40px;
+    width:200px;height:200px;
+    background:radial-gradient(circle, rgba(79,142,247,0.25) 0%, transparent 70%);
+    pointer-events:none;
+  }
+  .transit-card::after {
+    content:'';
+    position:absolute;
+    bottom:-30px; left:20px;
+    width:150px; height:150px;
+    background:radial-gradient(circle, rgba(110,231,183,0.1) 0%, transparent 70%);
+    pointer-events:none;
+  }
+  .card-header {
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    margin-bottom:16px;
+  }
+  .card-label { font-size:15px; font-weight:600; color:rgba(255,255,255,0.9); }
+  .card-number { font-size:11px; color:rgba(255,255,255,0.5); margin-top:2px; }
+  .nfc-icon {
+    width:32px;height:32px;
+    opacity:0.7;
+  }
+  .card-balance {
+    font-size:32px;
+    font-weight:900;
+    color:#fff;
+    letter-spacing:-0.5px;
+  }
+  .card-type-badge {
+    position:absolute;
+    bottom:14px; right:16px;
+    background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.2);
+    border-radius:8px;
+    padding:4px 10px;
+    font-size:11px;
+    color:rgba(255,255,255,0.7);
+    font-weight:600;
+    display:flex;align-items:center;gap:5px;
+  }
+
+  /* Card dots */
+  .card-dots {
+    display:flex;gap:6px;
+    padding:0 20px;
+    margin-bottom:20px;
+    justify-content:center;
+  }
+  .dot {
+    width:7px;height:7px;border-radius:50%;
+    background:var(--surface3);
+    transition:background .2s, width .2s;
+  }
+  .dot.active { background:var(--accent); width:20px; border-radius:4px; }
+
+  /* ── ACTION BUTTONS ── */
+  .actions {
+    display:flex;
+    gap:10px;
+    padding:0 20px;
+    margin-bottom:24px;
+  }
+  .action-btn {
+    flex:1;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius-sm);
+    padding:14px 8px 10px;
+    display:flex;flex-direction:column;align-items:center;gap:6px;
+    cursor:pointer;
+    transition:background .2s, transform .1s;
+    color:var(--text);
+  }
+  .action-btn:active { transform:scale(0.96); background:var(--surface2); }
+  .action-btn svg { color:var(--accent); }
+  .action-btn span { font-size:12px; font-weight:500; color:var(--text2); }
+
+  /* ── SECTION ── */
+  .section-header {
+    display:flex;justify-content:space-between;align-items:center;
+    padding:0 20px;
+    margin-bottom:12px;
+  }
+  .section-title { font-size:16px; font-weight:700; }
+  .section-link { font-size:13px; color:var(--accent); font-weight:500; cursor:pointer; }
+
+  /* ── TRIP ITEM ── */
+  .trip-list { padding:0 20px; display:flex;flex-direction:column;gap:8px; }
+  .trip-item {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius-sm);
+    padding:14px;
+    display:flex;align-items:center;gap:12px;
+    cursor:pointer;
+    transition:background .15s;
+  }
+  .trip-item:active { background:var(--surface2); }
+  .trip-icon {
+    width:38px;height:38px;flex-shrink:0;
+    background:var(--surface3);
+    border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    font-size:16px;
+  }
+  .trip-info { flex:1; min-width:0; }
+  .trip-name { font-size:14px;font-weight:600; white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .trip-route { font-size:12px;color:var(--text2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+  .trip-right { text-align:right;flex-shrink:0; }
+  .trip-time { font-size:12px;color:var(--text2); }
+  .trip-amount { font-size:14px;font-weight:700;color:var(--red);margin-top:2px; }
+
+  /* ── FILTER TABS ── */
+  .filter-tabs {
+    display:flex;gap:8px;
+    padding:0 20px;
+    margin-bottom:16px;
+    overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .filter-tabs::-webkit-scrollbar{display:none;}
+  .filter-tab {
+    flex-shrink:0;
+    padding:7px 16px;
+    border-radius:20px;
+    font-size:13px;font-weight:600;
+    background:var(--surface3);
+    color:var(--text2);
+    cursor:pointer;
+    border:1px solid var(--border);
+    transition:all .2s;
+  }
+  .filter-tab.active { background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  /* ── DATE GROUP ── */
+  .date-group { padding:0 20px; margin-bottom:4px; }
+  .date-label { font-size:12px; font-weight:600; color:var(--text3); margin-bottom:8px; text-transform:uppercase; letter-spacing:.5px; }
+
+  /* ── TOPUP SCREEN ── */
+  .topup-methods { padding:0 20px;display:flex;flex-direction:column;gap:10px; margin-bottom:24px; }
+  .method-item {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius-sm);
+    padding:16px;
+    display:flex;align-items:center;gap:14px;
+    cursor:pointer;
+    transition:background .15s;
+  }
+  .method-item:active { background:var(--surface2); }
+  .method-logo {
+    width:42px;height:42px;flex-shrink:0;
+    border-radius:10px;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:900;font-size:13px;
+  }
+  .method-logo.sbp { background:linear-gradient(135deg,#f7c948,#ff6b35); color:#fff; }
+  .method-logo.card { background:linear-gradient(135deg,#4f8ef7,#6c5ce7); color:#fff; }
+  .method-info { flex:1; }
+  .method-name { font-size:14px;font-weight:600; }
+  .method-desc { font-size:12px;color:var(--text2);margin-top:2px; }
+
+  .amount-label { font-size:14px;font-weight:600;color:var(--text2);padding:0 20px;margin-bottom:10px; }
+  .amount-chips { display:flex;gap:8px;padding:0 20px;margin-bottom:20px;flex-wrap:wrap; }
+  .amount-chip {
+    padding:9px 18px;
+    border-radius:20px;
+    background:var(--surface3);
+    border:1px solid var(--border);
+    font-size:14px;font-weight:600;
+    cursor:pointer;
+    transition:all .2s;
+    color:var(--text);
+  }
+  .amount-chip.active { background:var(--accent);border-color:var(--accent);color:#fff; }
+
+  .topup-btn {
+    margin:0 20px;
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    border-radius:var(--radius-sm);
+    padding:17px;
+    font-size:16px;font-weight:700;
+    font-family:'Golos Text',sans-serif;
+    cursor:pointer;
+    width:calc(100%-40px);
+    letter-spacing:.2px;
+    transition:opacity .2s, transform .1s;
+    box-shadow:0 4px 20px var(--accent-glow);
+  }
+  .topup-btn:active { opacity:.85; transform:scale(0.98); }
+  .demo-note { text-align:center;font-size:12px;color:var(--text3);margin:12px 20px 0;line-height:1.5; }
+
+  /* ── NFC SCREEN ── */
+  .nfc-screen-content { flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center; padding:20px; }
+  .nfc-orb {
+    width:200px;height:200px;
+    border-radius:50%;
+    background:radial-gradient(circle at 40% 40%, #1a3a8f, #0a0f2e);
+    box-shadow:0 0 60px rgba(79,142,247,0.4), 0 0 120px rgba(79,142,247,0.15), inset 0 0 40px rgba(79,142,247,0.1);
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:32px;
+    position:relative;
+    animation:orbPulse 2s ease-in-out infinite;
+  }
+  @keyframes orbPulse {
+    0%,100%{box-shadow:0 0 60px rgba(79,142,247,0.4),0 0 120px rgba(79,142,247,0.15)}
+    50%{box-shadow:0 0 80px rgba(79,142,247,0.6),0 0 160px rgba(79,142,247,0.25)}
+  }
+  .nfc-orb::before {
+    content:'';
+    position:absolute;inset:-15px;
+    border-radius:50%;
+    border:2px solid rgba(79,142,247,0.2);
+    animation:ripple 2s ease-in-out infinite;
+  }
+  .nfc-orb::after {
+    content:'';
+    position:absolute;inset:-30px;
+    border-radius:50%;
+    border:1px solid rgba(79,142,247,0.1);
+    animation:ripple 2s ease-in-out infinite .5s;
+  }
+  @keyframes ripple {
+    0%{opacity:0;transform:scale(0.8)}
+    50%{opacity:1}
+    100%{opacity:0;transform:scale(1.1)}
+  }
+  .nfc-title { font-size:22px;font-weight:800;margin-bottom:8px; text-align:center; }
+  .nfc-subtitle { font-size:14px;color:var(--text2);text-align:center;line-height:1.5;margin-bottom:32px; }
+  .nfc-card-mini {
+    background:var(--card-blue);
+    border-radius:var(--radius-sm);
+    padding:14px 18px;
+    width:100%;
+    display:flex;align-items:center;justify-content:space-between;
+    box-shadow:0 4px 20px rgba(0,0,0,0.3);
+    border:1px solid rgba(255,255,255,0.1);
+  }
+  .nfc-card-name { font-size:12px;color:rgba(255,255,255,0.6); }
+  .nfc-card-balance { font-size:18px;font-weight:800;color:#fff; margin-top:2px; }
+
+  /* ── PAYMENT OVERLAY ── */
+  .overlay {
+    position:absolute;inset:0;
+    background:var(--bg);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    z-index:100;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .3s;
+    padding:32px 24px;
+  }
+  .overlay.active { opacity:1;pointer-events:all; }
+  .overlay-close {
+    position:absolute;top:20px;right:20px;
+    width:36px;height:36px;
+    background:var(--surface3);
+    border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    border:1px solid var(--border);
+    font-size:18px;color:var(--text2);
+  }
+  .pay-orb {
+    width:140px;height:140px;
+    border-radius:50%;
+    background:radial-gradient(circle at 40% 40%, #1a3a8f, #0a0f2e);
+    box-shadow:0 0 50px rgba(79,142,247,0.3);
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:28px;
+    animation:orbPulse 1.5s ease-in-out infinite;
+  }
+  .pay-status { font-size:11px;font-weight:600;color:var(--text2);letter-spacing:1px;text-transform:uppercase;margin-top:8px; }
+
+  .pay-success-orb {
+    width:120px;height:120px;border-radius:50%;
+    background:radial-gradient(circle, rgba(74,222,128,0.2), transparent 70%);
+    border:3px solid var(--green);
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:24px;
+  }
+  .pay-error-orb {
+    width:120px;height:120px;border-radius:50%;
+    background:radial-gradient(circle, rgba(242,92,92,0.2), transparent 70%);
+    border:3px solid var(--red);
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom:24px;
+  }
+  .pay-amount { font-size:40px;font-weight:900;letter-spacing:-1px; margin-bottom:4px; }
+  .pay-label { font-size:20px;font-weight:700;margin-bottom:8px; }
+  .pay-sublabel { font-size:14px;color:var(--text2); margin-bottom:24px; }
+  .pay-info-box {
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius-sm);
+    padding:14px 18px;
+    width:100%;
+    display:flex;align-items:center;gap:12px;
+  }
+  .pay-info-route { font-size:13px;font-weight:600; }
+  .pay-info-date { font-size:12px;color:var(--text2);margin-top:2px; }
+  .pay-info-remain { font-size:14px;font-weight:700;color:var(--green);margin-left:auto; }
+  .pay-info-label { font-size:11px;color:var(--text2); }
+
+  /* ── SETTINGS ── */
+  .settings-list { padding:0 20px;display:flex;flex-direction:column;gap:8px; }
+  .settings-group { background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);overflow:hidden; }
+  .settings-item {
+    padding:15px 16px;
+    display:flex;align-items:center;gap:12px;
+    cursor:pointer;
+    transition:background .15s;
+    border-bottom:1px solid var(--border);
+  }
+  .settings-item:last-child { border-bottom:none; }
+  .settings-item:active { background:var(--surface2); }
+  .settings-icon { width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0; }
+  .settings-label { flex:1;font-size:14px;font-weight:500; }
+  .settings-value { font-size:13px;color:var(--text2); }
+  .settings-chevron { color:var(--text3); }
+  .settings-item.danger .settings-label { color:var(--red); }
+  .settings-item.danger .settings-icon { background:rgba(242,92,92,0.15); }
+
+  /* ── BOTTOM NAV ── */
+  .bottom-nav {
+    position:absolute;bottom:0;left:0;right:0;
+    background:var(--surface);
+    border-top:1px solid var(--border);
+    display:flex;
+    padding:8px 0 calc(8px + env(safe-area-inset-bottom));
+    z-index:50;
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+  }
+  .nav-item {
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+    cursor:pointer;padding:6px 0;
+    transition:opacity .15s;
+  }
+  .nav-item:active { opacity:.6; }
+  .nav-icon { position:relative; }
+  .nav-dot {
+    width:4px;height:4px;border-radius:50%;
+    background:var(--accent);
+    margin:0 auto;
+    opacity:0;
+    transition:opacity .2s;
+  }
+  .nav-item.active .nav-dot { opacity:1; }
+  .nav-item.active svg { color:var(--accent); }
+  .nav-item svg { color:var(--text3); transition:color .2s; }
+  .nav-label { font-size:10px;font-weight:500;color:var(--text3);transition:color .2s; }
+  .nav-item.active .nav-label { color:var(--accent); }
+
+  /* ── TOGGLE ── */
+  .toggle {
+    width:44px;height:26px;border-radius:13px;
+    background:var(--surface3);
+    position:relative;cursor:pointer;
+    transition:background .2s;
+    flex-shrink:0;
+    border:1px solid var(--border);
+  }
+  .toggle.on { background:var(--accent); border-color:var(--accent); }
+  .toggle::after {
+    content:'';
+    position:absolute;
+    top:3px;left:3px;
+    width:18px;height:18px;border-radius:50%;
+    background:#fff;
+    transition:transform .2s;
+    box-shadow:0 1px 4px rgba(0,0,0,0.3);
+  }
+  .toggle.on::after { transform:translateX(18px); }
+
+  /* ── UTILS ── */
+  .px20 { padding:0 20px; }
+  .mb16 { margin-bottom:16px; }
+  .mb24 { margin-bottom:24px; }
+
+  svg { display:block; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
+
+  /* Animations */
+  @keyframes fadeIn { from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)} }
+  .anim { animation:fadeIn .3s ease both; }
+  .anim-d1{animation-delay:.05s}
+  .anim-d2{animation-delay:.1s}
+  .anim-d3{animation-delay:.15s}
+  .anim-d4{animation-delay:.2s}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- ══════════════ SCREEN: HOME ══════════════ -->
+  <div class="screen active" id="screen-home">
+    <div class="status-bar">
+      <span>9:41</span>
+      <div class="status-right">
+        <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="3" width="3" height="9" rx="1" fill="currentColor" stroke="none"/><rect x="4" y="2" width="3" height="10" rx="1" fill="currentColor" stroke="none" opacity=".6"/><rect x="8" y="0" width="3" height="12" rx="1" fill="currentColor" stroke="none" opacity=".4"/><rect x="12" y="0" width="3" height="12" rx="1" fill="currentColor" stroke="none" opacity=".2"/></svg>
+        <svg width="16" height="12" viewBox="0 0 16 12"><path d="M8 2C10.5 2 12.7 3.2 14.1 5L15.5 3.5C13.7 1.3 11 0 8 0C5 0 2.3 1.3.5 3.5L1.9 5C3.3 3.2 5.5 2 8 2Z" fill="currentColor" stroke="none"/><path d="M8 5C9.5 5 10.8 5.7 11.7 6.8L13.1 5.3C11.8 3.9 10 3 8 3C6 3 4.2 3.9 2.9 5.3L4.3 6.8C5.2 5.7 6.5 5 8 5Z" fill="currentColor" stroke="none"/><circle cx="8" cy="10" r="2" fill="currentColor" stroke="none"/></svg>
+        <svg width="25" height="12" viewBox="0 0 25 12"><rect x="0" y="1" width="22" height="10" rx="3" stroke="currentColor" stroke-width="1.2" fill="none"/><rect x="1.5" y="2.5" width="17" height="7" rx="2" fill="currentColor" stroke="none"/><path d="M23 4.5v3c.8-.4 1.3-1 1.3-1.5s-.5-1.1-1.3-1.5z" fill="currentColor" stroke="none"/></svg>
+      </div>
+    </div>
+    <div class="topbar">
+      <span class="topbar-title">Мои карты</span>
+      <div class="topbar-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+    </div>
+    <div class="scroll-content">
+      <!-- Card -->
+      <div class="card-wrap anim" onclick="switchCard()">
+        <div class="transit-card" id="main-card">
+          <div class="card-header">
+            <div>
+              <div class="card-label" id="card-label">Единый проездной</div>
+              <div class="card-number">№ 1234 5678 9012 3456</div>
+            </div>
+            <svg class="nfc-icon" width="32" height="32" viewBox="0 0 24 24" stroke="rgba(255,255,255,0.7)"><path d="M20 12a8 8 0 0 0-8-8"/><path d="M16 12a4 4 0 0 0-4-4"/><path d="M12 12a0 0 0 0 0 0 0"/><path d="M4 12a8 8 0 0 0 8 8"/><path d="M8 12a4 4 0 0 0 4 4"/></svg>
+          </div>
+          <div class="card-balance" id="card-balance">1 250,00 ₽</div>
+          <div class="card-type-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" stroke="rgba(255,255,255,0.7)"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            Транспортная
+          </div>
+        </div>
+      </div>
+      <div class="card-dots">
+        <div class="dot active" onclick="switchCard(0)"></div>
+        <div class="dot" onclick="switchCard(1)"></div>
+      </div>
+      <!-- Actions -->
+      <div class="actions anim anim-d1">
+        <div class="action-btn" onclick="goTo('topup')">
+          <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+          <span>Пополнить</span>
+        </div>
+        <div class="action-btn" onclick="goTo('history')">
+          <svg width="22" height="22" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+          <span>История</span>
+        </div>
+        <div class="action-btn" onclick="goTo('nfc')">
+          <svg width="22" height="22" viewBox="0 0 24 24"><path d="M20 12a8 8 0 0 0-8-8"/><path d="M16 12a4 4 0 0 0-4-4"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/></svg>
+          <span>Оплатить</span>
+        </div>
+      </div>
+      <!-- Recent trips -->
+      <div class="section-header anim anim-d2">
+        <span class="section-title">Последние поездки</span>
+        <span class="section-link" onclick="goTo('history')">Все</span>
+      </div>
+      <div class="trip-list anim anim-d3">
+        <div class="trip-item">
+          <div class="trip-icon">🚌</div>
+          <div class="trip-info">
+            <div class="trip-name">Автобус №25</div>
+            <div class="trip-route">ул. Ленина → пл. Победы</div>
+          </div>
+          <div class="trip-right">
+            <div class="trip-time">Сегодня, 08:45</div>
+            <div class="trip-amount">−33 ₽</div>
+          </div>
+        </div>
+        <div class="trip-item">
+          <div class="trip-icon">🚃</div>
+          <div class="trip-info">
+            <div class="trip-name">Трамвай №7</div>
+            <div class="trip-route">Северо-Западная → Вокзал</div>
+          </div>
+          <div class="trip-right">
+            <div class="trip-time">Сегодня, 08:12</div>
+            <div class="trip-amount">−33 ₽</div>
+          </div>
+        </div>
+        <div class="trip-item">
+          <div class="trip-icon">🚌</div>
+          <div class="trip-info">
+            <div class="trip-name">Автобус №41</div>
+            <div class="trip-route">пл. Победы → ул. Малахова</div>
+          </div>
+          <div class="trip-right">
+            <div class="trip-time">Вчера, 19:33</div>
+            <div class="trip-amount">−33 ₽</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SCREEN: HISTORY ══════════════ -->
+  <div class="screen" id="screen-history">
+    <div class="status-bar"><span>9:41</span><div class="status-right">
+      <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="3" width="3" height="9" rx="1" fill="currentColor" stroke="none"/><rect x="4" y="2" width="3" height="10" rx="1" fill="currentColor" stroke="none" opacity=".6"/><rect x="8" y="0" width="3" height="12" rx="1" fill="currentColor" stroke="none" opacity=".4"/></svg>
+    </div></div>
+    <div class="topbar">
+      <div class="back-btn" onclick="goBack()">
+        <svg width="20" height="20" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </div>
+      <span class="topbar-title">История поездок</span>
+      <div class="topbar-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="11" y2="18"/></svg>
+      </div>
+    </div>
+    <div class="filter-tabs">
+      <div class="filter-tab active" onclick="filterTrips('all',this)">Все</div>
+      <div class="filter-tab" onclick="filterTrips('bus',this)">Автобус</div>
+      <div class="filter-tab" onclick="filterTrips('tram',this)">Трамвай</div>
+      <div class="filter-tab" onclick="filterTrips('trolley',this)">Троллейбус</div>
+    </div>
+    <div class="scroll-content" id="history-list">
+      <div class="date-group">
+        <div class="date-label">Сегодня</div>
+        <div class="trip-list" style="padding:0">
+          <div class="trip-item" data-type="bus">
+            <div class="trip-icon">🚌</div>
+            <div class="trip-info"><div class="trip-name">Автобус №25</div><div class="trip-route">ул. Ленина → пл. Победы</div></div>
+            <div class="trip-right"><div class="trip-time">08:45</div><div class="trip-amount">−33 ₽</div></div>
+          </div>
+          <div class="trip-item" data-type="tram">
+            <div class="trip-icon">🚃</div>
+            <div class="trip-info"><div class="trip-name">Трамвай №7</div><div class="trip-route">Северо-Западная → Вокзал</div></div>
+            <div class="trip-right"><div class="trip-time">08:12</div><div class="trip-amount">−33 ₽</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="date-group" style="margin-top:16px">
+        <div class="date-label">Вчера</div>
+        <div class="trip-list" style="padding:0">
+          <div class="trip-item" data-type="trolley">
+            <div class="trip-icon">🚎</div>
+            <div class="trip-info"><div class="trip-name">Троллейбус №1</div><div class="trip-route">ул. Попова → Джкучаево</div></div>
+            <div class="trip-right"><div class="trip-time">19:33</div><div class="trip-amount">−33 ₽</div></div>
+          </div>
+          <div class="trip-item" data-type="bus">
+            <div class="trip-icon">🚌</div>
+            <div class="trip-info"><div class="trip-name">Автобус №53</div><div class="trip-route">Джкучаево → ТЦ Европа</div></div>
+            <div class="trip-right"><div class="trip-time">18:21</div><div class="trip-amount">−33 ₽</div></div>
+          </div>
+          <div class="trip-item" data-type="tram">
+            <div class="trip-icon">🚃</div>
+            <div class="trip-info"><div class="trip-name">Трамвай №3</div><div class="trip-route">Вокзал → ул. Антона Петрова</div></div>
+            <div class="trip-right"><div class="trip-time">17:56</div><div class="trip-amount">−33 ₽</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ SCREEN: TOPUP ══════════════ -->
+  <div class="screen" id="screen-topup">
+    <div class="status-bar"><span>9:41</span><div class="status-right">
+      <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="3" width="3" height="9" rx="1" fill="currentColor" stroke="none"/></svg>
+    </div></div>
+    <div class="topbar">
+      <div class="back-btn" onclick="goBack()">
+        <svg width="20" height="20" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </div>
+      <span class="topbar-title">Пополнение баланса</span>
+    </div>
+    <div class="scroll-content">
+      <p style="padding:0 20px 14px;font-size:14px;color:var(--text2)">Выберите способ пополнения</p>
+      <div class="topup-methods">
+        <div class="method-item" onclick="selectMethod(this,'sbp')">
+          <div class="method-logo sbp">СБП</div>
+          <div class="method-info">
+            <div class="method-name">СБП (Система быстрых платежей)</div>
+            <div class="method-desc">Демо-пополнение через СБП</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+        <div class="method-item" onclick="selectMethod(this,'card')">
+          <div class="method-logo card">💳</div>
+          <div class="method-info">
+            <div class="method-name">Банковская карта</div>
+            <div class="method-desc">Демо-пополнение картой</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+        </div>
+      </div>
+      <div class="amount-label">Сумма пополнения</div>
+      <div class="amount-chips">
+        <div class="amount-chip" onclick="selectAmount(this,100)">100 ₽</div>
+        <div class="amount-chip active" onclick="selectAmount(this,300)">300 ₽</div>
+        <div class="amount-chip" onclick="selectAmount(this,500)">500 ₽</div>
+        <div class="amount-chip" onclick="selectAmount(this,1000)">1000 ₽</div>
+      </div>
+      <div style="text-align:center;font-size:28px;font-weight:900;padding:0 20px 20px;letter-spacing:-0.5px" id="selected-amount-display">500 ₽</div>
+      <button class="topup-btn" onclick="doTopup()">Пополнить (демо)</button>
+      <p class="demo-note">Это демонстрационная версия.<br>Платежи не настоящие.</p>
+    </div>
+  </div>
+
+  <!-- ══════════════ SCREEN: NFC ══════════════ -->
+  <div class="screen" id="screen-nfc">
+    <div class="status-bar"><span>9:41</span><div class="status-right">
+      <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="3" width="3" height="9" rx="1" fill="currentColor" stroke="none"/></svg>
+    </div></div>
+    <div class="topbar">
+      <div class="back-btn" onclick="goBack()">
+        <svg width="20" height="20" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </div>
+      <span class="topbar-title">NFC оплата</span>
+      <div class="topbar-icon" onclick="closeOverlay()">
+        <svg width="18" height="18" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </div>
+    </div>
+    <div class="nfc-screen-content">
+      <div class="nfc-orb">
+        <svg width="80" height="80" viewBox="0 0 24 24" stroke="rgba(255,255,255,0.8)" stroke-width="1.5">
+          <rect x="5" y="2" width="14" height="20" rx="2"/>
+          <path d="M9 9a3 3 0 0 1 6 0c0 2-3 5-3 5s-3-3-3-5z"/>
+          <circle cx="12" cy="9" r="1" fill="white" stroke="none"/>
+        </svg>
+      </div>
+      <div class="nfc-title">Поднесите телефон<br>к терминалу</div>
+      <div class="nfc-subtitle">Идёт чтение карты...<br>Не убирайте телефон от терминала</div>
+      <div class="nfc-card-mini" onclick="simulatePay()">
+        <div>
+          <div class="nfc-card-name">Единый проездной</div>
+          <div class="nfc-card-balance" id="nfc-balance-display">1 250,00 ₽</div>
+        </div>
+        <svg width="28" height="28" viewBox="0 0 24 24" stroke="rgba(255,255,255,0.5)"><path d="M20 12a8 8 0 0 0-8-8"/><path d="M16 12a4 4 0 0 0-4-4"/><circle cx="12" cy="12" r="1" fill="rgba(255,255,255,0.5)" stroke="none"/></svg>
+      </div>
+      <p style="font-size:12px;color:var(--text3);margin-top:16px;text-align:center">Нажмите на карту для симуляции оплаты</p>
+    </div>
+  </div>
+
+  <!-- ══════════════ SCREEN: SETTINGS ══════════════ -->
+  <div class="screen" id="screen-settings">
+    <div class="status-bar"><span>9:41</span><div class="status-right">
+      <svg width="16" height="12" viewBox="0 0 16 12"><rect x="0" y="3" width="3" height="9" rx="1" fill="currentColor" stroke="none"/></svg>
+    </div></div>
+    <div class="topbar">
+      <div class="back-btn" onclick="goBack()">
+        <svg width="20" height="20" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </div>
+      <span class="topbar-title">Настройки</span>
+    </div>
+    <div class="scroll-content">
+      <div class="settings-list">
+        <div class="settings-group">
+          <div class="settings-item" onclick="toggleTheme()">
+            <div class="settings-icon" style="background:rgba(79,142,247,0.15)">
+              <svg width="16" height="16" viewBox="0 0 24 24" stroke="var(--accent)"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </div>
+            <span class="settings-label">Тема</span>
+            <span class="settings-value" id="theme-value">Тёмная</span>
+            <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+          <div class="settings-item" onclick="toggleNotif()">
+            <div class="settings-icon" style="background:rgba(251,191,36,0.15)">
+              <svg width="16" height="16" viewBox="0 0 24 24" stroke="#fbbf24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            </div>
+            <span class="settings-label">Уведомления</span>
+            <div class="toggle on" id="notif-toggle" onclick="event.stopPropagation();toggleNotif()"></div>
+          </div>
+          <div class="settings-item">
+            <div class="settings-icon" style="background:rgba(110,231,183,0.15)">
+              <svg width="16" height="16" viewBox="0 0 24 24" stroke="var(--accent2)"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+            </div>
+            <span class="settings-label">Способ оплаты по умолчанию</span>
+            <span class="settings-value">СБП</span>
+            <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-item">
+            <div class="settings-icon" style="background:rgba(79,142,247,0.1)">
+              <svg width="16" height="16" viewBox="0 0 24 24" stroke="var(--accent)"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+            <span class="settings-label">О приложении</span>
+            <span class="settings-value">Версия 1.0.0 (демо)</span>
+            <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+          <div class="settings-item">
+            <div class="settings-icon" style="background:rgba(255,255,255,0.05)">
+              <svg width="16" height="16" viewBox="0 0 24 24" stroke="var(--text2)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </div>
+            <span class="settings-label">Пользовательское соглашение</span>
+            <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+          <div class="settings-item">
+            <div class="settings-icon" style="background:rgba(255,255,255,0.05)">
+              <svg width="16" height="16" viewBox="0 0 24 24" stroke="var(--text2)"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </div>
+            <span class="settings-label">Политика конфиденциальности</span>
+            <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+        <div class="settings-group">
+          <div class="settings-item danger">
+            <div class="settings-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" stroke="var(--red)"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </div>
+            <span class="settings-label">Выйти из приложения</span>
+            <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24" stroke="var(--red)"><polyline points="9 18 15 12 9 6"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ PAYMENT OVERLAY ══════════════ -->
+  <div class="overlay" id="overlay-processing">
+    <div class="overlay-close" onclick="closeOverlay()">✕</div>
+    <div class="topbar" style="position:absolute;top:0;left:0;right:0;background:transparent">
+      <span style="font-size:18px;font-weight:700;flex:1;text-align:center">Оплата</span>
+    </div>
+    <div class="pay-orb">
+      <svg width="60" height="60" viewBox="0 0 24 24" stroke="rgba(255,255,255,0.8)" stroke-width="1.5">
+        <rect x="5" y="2" width="14" height="20" rx="2"/>
+        <path d="M9 9a3 3 0 0 1 6 0c0 2-3 5-3 5s-3-3-3-5z"/>
+        <circle cx="12" cy="9" r="1" fill="white" stroke="none"/>
+      </svg>
+    </div>
+    <div style="font-size:18px;font-weight:700">Обработка платежа...</div>
+    <div class="pay-status">Не убирайте телефон от терминала</div>
+  </div>
+
+  <div class="overlay" id="overlay-success">
+    <div class="overlay-close" onclick="closeOverlay()">✕</div>
+    <div class="topbar" style="position:absolute;top:0;left:0;right:0;background:transparent">
+      <span style="font-size:18px;font-weight:700;flex:1;text-align:center">Оплата</span>
+    </div>
+    <div class="pay-success-orb">
+      <svg width="52" height="52" viewBox="0 0 24 24" stroke="var(--green)" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <div class="pay-label" style="color:var(--green)">Оплата успешна!</div>
+    <div class="pay-amount" id="pay-amount-display">33 ₽</div>
+    <div class="pay-info-box" style="margin-bottom:12px">
+      <div class="trip-icon">🚌</div>
+      <div>
+        <div class="pay-info-route">Автобус №25</div>
+        <div class="pay-info-date">Сегодня, 08:45</div>
+      </div>
+    </div>
+    <div class="pay-info-box">
+      <div>
+        <div class="pay-info-label">Остаток на карте</div>
+      </div>
+      <div class="pay-info-remain" id="pay-remain-display">1 217,00 ₽</div>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay-error">
+    <div class="overlay-close" onclick="closeOverlay()">✕</div>
+    <div class="topbar" style="position:absolute;top:0;left:0;right:0;background:transparent">
+      <span style="font-size:18px;font-weight:700;flex:1;text-align:center">Оплата</span>
+    </div>
+    <div class="pay-error-orb">
+      <svg width="52" height="52" viewBox="0 0 24 24" stroke="var(--red)" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </div>
+    <div class="pay-label" style="color:var(--red)">Ошибка оплаты</div>
+    <div class="pay-sublabel">Попробуйте ещё раз</div>
+    <div class="pay-info-box">
+      <div class="trip-icon">🚌</div>
+      <div>
+        <div class="pay-info-route">Автобус №25</div>
+        <div class="pay-info-date">Сегодня, 08:45</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════ BOTTOM NAV ══════════════ -->
+  <nav class="bottom-nav">
+    <div class="nav-item active" id="nav-home" onclick="goTo('home')">
+      <div class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+      </div>
+      <div class="nav-dot"></div>
+      <span class="nav-label">Главная</span>
+    </div>
+    <div class="nav-item" id="nav-history" onclick="goTo('history')">
+      <div class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></svg>
+      </div>
+      <div class="nav-dot"></div>
+      <span class="nav-label">История</span>
+    </div>
+    <div class="nav-item" id="nav-topup" onclick="goTo('topup')">
+      <div class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      </div>
+      <div class="nav-dot"></div>
+      <span class="nav-label">Пополнить</span>
+    </div>
+    <div class="nav-item" id="nav-settings" onclick="goTo('settings')">
+      <div class="nav-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </div>
+      <div class="nav-dot"></div>
+      <span class="nav-label">Настройки</span>
+    </div>
+  </nav>
+
+</div>
+
+<script>
+// ── STATE ──
+let state = {
+  currentScreen: 'home',
+  prevScreen: null,
+  balance: 1250.00,
+  selectedAmount: 500,
+  isLight: false,
+  notifOn: true,
+  cardIndex: 0,
+};
+
+const cards = [
+  { label: 'Единый проездной', balance: 1250.00, num: '№ 1234 5678 9012 3456' },
+  { label: 'Студенческий', balance: 340.00, num: '№ 9876 5432 1098 7654' },
+];
+
+// ── NAVIGATION ──
+function goTo(screen) {
+  const curr = document.getElementById('screen-' + state.prevScreen || state.currentScreen);
+  const prev = document.getElementById('screen-' + state.currentScreen);
+  const next = document.getElementById('screen-' + screen);
+  if (!next || screen === state.currentScreen) return;
+
+  prev.classList.add('slide-out');
+  setTimeout(() => {
+    prev.classList.remove('active','slide-out');
+    next.classList.add('active');
+    state.prevScreen = state.currentScreen;
+    state.currentScreen = screen;
+    updateNav(screen);
+  }, 50);
+}
+
+function goBack() {
+  goTo(state.prevScreen || 'home');
+}
+
+function updateNav(screen) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const map = {home:'nav-home',history:'nav-history',topup:'nav-topup',settings:'nav-settings'};
+  if (map[screen]) document.getElementById(map[screen]).classList.add('active');
+}
+
+// ── CARD SWITCH ──
+let cardSwitchIndex = 0;
+function switchCard(idx) {
+  cardSwitchIndex = (idx !== undefined) ? idx : (cardSwitchIndex + 1) % cards.length;
+  const c = cards[cardSwitchIndex];
+  document.getElementById('card-label').textContent = c.label;
+  document.getElementById('card-balance').textContent = formatMoney(c.balance);
+  document.getElementById('nfc-balance-display').textContent = formatMoney(c.balance);
+  document.querySelectorAll('.dot').forEach((d,i) => d.classList.toggle('active', i===cardSwitchIndex));
+}
+
+// ── FILTER TRIPS ──
+function filterTrips(type, el) {
+  document.querySelectorAll('.filter-tab').forEach(t=>t.classList.remove('active'));
+  el.classList.add('active');
+  document.querySelectorAll('#history-list .trip-item').forEach(item => {
+    item.style.display = (type==='all' || item.dataset.type===type) ? 'flex' : 'none';
+  });
+}
+
+// ── TOPUP ──
+function selectMethod(el, type) {
+  document.querySelectorAll('.method-item').forEach(m => m.style.borderColor='');
+  el.style.borderColor = 'var(--accent)';
+}
+
+function selectAmount(el, amt) {
+  document.querySelectorAll('.amount-chip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+  state.selectedAmount = amt;
+  document.getElementById('selected-amount-display').textContent = amt + ' ₽';
+}
+
+function doTopup() {
+  state.balance += state.selectedAmount;
+  cards[cardSwitchIndex].balance += state.selectedAmount;
+  document.getElementById('card-balance').textContent = formatMoney(cards[cardSwitchIndex].balance);
+  document.getElementById('nfc-balance-display').textContent = formatMoney(cards[cardSwitchIndex].balance);
+  showToast('✅ Баланс пополнен на ' + state.selectedAmount + ' ₽');
+  setTimeout(()=>goTo('home'), 1200);
+}
+
+// ── NFC PAY ──
+function simulatePay() {
+  showOverlay('processing');
+  setTimeout(() => {
+    closeOverlay();
+    const success = Math.random() > 0.3;
+    if (success) {
+      const cost = 33;
+      cards[cardSwitchIndex].balance -= cost;
+      document.getElementById('pay-amount-display').textContent = cost + ' ₽';
+      document.getElementById('pay-remain-display').textContent = formatMoney(cards[cardSwitchIndex].balance);
+      document.getElementById('card-balance').textContent = formatMoney(cards[cardSwitchIndex].balance);
+      document.getElementById('nfc-balance-display').textContent = formatMoney(cards[cardSwitchIndex].balance);
+      showOverlay('success');
+    } else {
+      showOverlay('error');
+    }
+  }, 2200);
+}
+
+function showOverlay(type) {
+  document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('active'));
+  document.getElementById('overlay-'+type).classList.add('active');
+}
+function closeOverlay() {
+  document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('active'));
+}
+
+// ── SETTINGS ──
+function toggleTheme() {
+  state.isLight = !state.isLight;
+  document.getElementById('app').classList.toggle('light-theme', state.isLight);
+  document.getElementById('theme-value').textContent = state.isLight ? 'Светлая' : 'Тёмная';
+}
+function toggleNotif() {
+  state.notifOn = !state.notifOn;
+  document.getElementById('notif-toggle').classList.toggle('on', state.notifOn);
+}
+
+// ── UTILS ──
+function formatMoney(n) {
+  return n.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,'\u00a0').replace('.',',') + '\u00a0₽';
+}
+
+let toastTimer;
+function showToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    t.style.cssText = `
+      position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+      background:#222;color:#fff;padding:12px 20px;border-radius:20px;
+      font-size:14px;font-weight:600;z-index:999;pointer-events:none;
+      transition:opacity .3s;white-space:nowrap;
+      box-shadow:0 4px 20px rgba(0,0,0,0.4);
+    `;
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>{ t.style.opacity='0'; }, 2500);
+}
+
+// Init
+updateNav('home');
+</script>
+</body>
+  </html>
