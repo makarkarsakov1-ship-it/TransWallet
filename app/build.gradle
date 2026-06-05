@@ -3,6 +3,7 @@ plugins {
 }
 
 android {
+    namespace 'com.transwallet'
     compileSdk 34
     defaultConfig {
         applicationId "com.transwallet"
@@ -15,5 +16,9 @@ android {
         release {
             minifyEnabled false
         }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 }
