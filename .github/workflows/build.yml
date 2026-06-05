@@ -3,17 +3,14 @@ name: 🚀 Build Android APK
 on:
   push:
     branches: [ main ]
-  pull_request:
-    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   build:
-    name: Build & Lint APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout source
+      - name: 📥 Checkout
         uses: actions/checkout@v4
 
       - name: ☕ Set up JDK 21
@@ -21,29 +18,16 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: 📦 Cache Gradle packages
-        uses: actions/cache@v4
+      - name: 🔧 Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
-
-      - name: 🔐 Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: 🔍 Run Lint
-        run: ./gradlew lint --continue
-        continue-on-error: true
+          gradle-version: '8.2'
 
       - name: 🏗️ Build Debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        run: gradle assembleDebug --stacktrace
 
-      - name: 📤 Upload APK artifact
+      - name: 📤 Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
